@@ -1,85 +1,306 @@
-$(document).ready(function(){
-  $("#btn-rei").click(function(){
-    $(this).text("Esperando");
-    inicio();
-  });
-  for (var f=0;f<=7; f++){
-    for (var i=0;i<=7;i++){
-      num=Math.floor((Math.random()*4)+1);
-      $(".col-"+i).append("<img class='elemento' src='image/"+num+".png'>");
+$(function(){
+//cambio de color en titulo
+  setInterval(function(){
+    var color=$(".main-titulo").css("color");
+    if ((seg%2)==0){
+      $(".main-titulo").css("color","white");
+    }
+    else
+    {
+      $(".main-titulo").css("color","#DCFF0E");
+    }
+  },1000);
+})
+
+var rbh=0;
+var rbv=0;
+var bnewd=0;
+var lencol=["","","","","","",""];
+var lenres=["","","","","","",""];
+var maximo=0;
+var matriz=0;
+
+//variable de tiempo para funcion de desplazamiento
+var intervalo=0;
+
+//variable de tiempo para eliminar dulces
+var eliminar=0;
+
+//variable de tiempo para nuevos dulces
+var newdulces=0;
+
+//variable de tiempo para temporizador
+var tiempo=0;
+
+var i=0;
+
+//contador total
+var contador=0;
+
+//contador columna1
+var conc1=0;
+
+var initialPos;
+var espera=0;
+var score=0;
+var mov=0;
+
+var min=2;
+var seg=0;
+
+$(".btn-reinicio").click(function(){
+  i=0;
+  score=0;
+  mov=0;
+  $(".panel-score").css("width","25%");
+  $(".panel-tablero").show();
+  $(".time").show();
+
+  $("#score-text").html("0")
+  $("#movimientos-text").html("0")
+  $(this).html("Reiniciar")
+
+  // clearInterval(intervalo);
+  clearInterval(eliminar);
+  clearInterval(newdulces);
+  clearInterval(tiempo);
+
+  // temporizador
+  min=2;
+  seg=0;
+
+  intervalo=setInterval(function(){desplazamiento()},100)
+  tiempo=setInterval(function(){timer()},1000)
+})
+
+function callback(){
+    $( ".panel-score" ).animate({width:'100%'},1500);
+}
+
+function borrartotal(){
+  for(var j=1;j<8;j++)
+  {
+    $(".col-"+j).children("img").detach();
+  }
+}
+//funcion para llenar panel-tablero
+function desplazamiento(){
+  i=i+1
+  var numero=0;
+  var imagen=0;
+
+  $(".elemento").draggable({ disabled: true });
+  if(i<8)
+  {
+    for(var j=1;j<8;j++)
+    {
+      if($(".col-"+j).children("img:nth-child("+i+")").html()==null)
+      {
+        numero=Math.floor(Math.random() * 4) + 1 ;
+        imagen="image/"+numero+".png";
+        $(".col-"+j).prepend("<img src="+imagen+" class='elemento'/>").css("justify-content","flex-start")
+      }
     }
   }
-  mueveDulces();
-  eliminar();
-});
-
-//funcion para cambiar dulces drag and drop
-function mueveDulces() {
-    var dulce1
-    var dulce2
-    var dulceSrc1
-    var dulceSrc2
-    var movTotal = 0
-    $("img").draggable({
-      revert: "valid",
-      containment: ".panel-tablero",
-      start: function (event, ui){
-        dulce1 = this
-        dulceSrc1 = $(this).attr("src")
-      }
-    })
-    $("img").droppable({
-      drop: function (event, ui){
-        dulce2 = this
-        dulceSrc2 = $(this).attr("src")
-        $(dulce2).attr("src",dulceSrc1)
-        $(dulce1).attr("src",dulceSrc2)
-        movTotal = movTotal + 1
-        $("#movimientos-text").html(movTotal)
-      }
-    })
+  if(i==8)
+  {
+    clearInterval(intervalo);   //desactivar funcion desplazamiento()
+    eliminar=setInterval(function(){eliminarhorver()},150)  //activar funcion eliminarhorver
+  }
 }
-//funcion de busqueda horizontal de dulces
+//elimina mas de 3 dulces
+function eliminarhorver(){
+  matriz=0;
+
+  //busca dulces horizontal
+  rbh=horizontal()
+
+  //busca dulces vertical
+  rbv=vertical()
+
+  for(var j=1;j<8;j++)
+  {
+      matriz=matriz+$(".col-"+j).children().length;
+  }
+
+  //si no encuentra 3 dulces o mas llamar a funcion para volver a completar el uego
+  if(rbh==0 && rbv==0 && matriz!=49)
+  {
+      clearInterval(eliminar);
+      bnewd=0;
+      newdulces=setInterval(function()
+      {
+        nuevosdulces()  //Funcion completar nuevos dulces
+      },250)
+  }
+  if(rbh==1 || rbv==1)
+  {
+    $(".elemento").draggable({ disabled: true });
+    $("div[class^='col']").css("justify-content","flex-end")
+    $(".activo").hide("pulsate",1000,function(){
+      var scoretmp=$(".activo").length;
+      $(".activo").remove("img")
+      score=score+scoretmp;
+      $("#score-text").html(score)
+    })
+  }
+
+  if(rbh==0 && rbv==0 && matriz==49)
+  {
+    $(".elemento").draggable({
+      disabled: false,
+      containment: ".panel-tablero",
+      revert: true,
+      revertDuration: 0,
+      snap: ".elemento",
+      snapMode: "inner",
+      snapTolerance: 40,
+      start: function(event, ui){
+        mov=mov+1;
+        $("#movimientos-text").html(mov)
+      }
+    });
+  }
+
+  $(".elemento").droppable({
+    drop: function (event, ui) {
+      var dropped = ui.draggable;
+      var droppedOn = this;
+      espera=0;
+      do{
+        espera=dropped.swap($(droppedOn));
+      }while(espera==0)
+      rbh=horizontal()
+      rbv=vertical()
+      if(rbh==0 && rbv==0)
+      {
+        dropped.swap($(droppedOn));
+      }
+      if(rbh==1 || rbv==1)
+      {
+        clearInterval(newdulces);
+
+        //desactiva funcion desplazamiento()
+        clearInterval(eliminar);
+
+        //activa funcion eliminarhorver
+        eliminar=setInterval(function(){eliminarhorver()},150)
+      }
+    },
+  });
+}
+
+//funcion intercambia dulces
+jQuery.fn.swap = function(b){
+    b = jQuery(b)[0];
+    var a = this[0];
+    var t = a.parentNode.insertBefore(document.createTextNode(''), a);
+    b.parentNode.insertBefore(a, b);
+    t.parentNode.insertBefore(b, t);
+    t.parentNode.removeChild(t);
+    return this;
+};
+
+//funcion de nuevos dulces
+function nuevosdulces(){
+  $(".elemento").draggable({ disabled: true });
+
+  //alert("pase")
+  $("div[class^='col']").css("justify-content","flex-start")
+  for(var j=1;j<8;j++)
+  {
+      lencol[j-1]=$(".col-"+j).children().length;
+  }
+  if(bnewd==0)
+  {
+    for(var j=0;j<7;j++)
+    {
+      lenres[j]=(7-lencol[j]);
+    }
+    maximo=Math.max.apply(null,lenres);
+    contador=maximo;
+  }
+  if(maximo!=0)
+  {
+    if(bnewd==1)
+    {
+      for(var j=1;j<8;j++)
+      {
+        if(contador>(maximo-lenres[j-1]))
+        {
+          $(".col-"+j).children("img:nth-child("+(lenres[j-1])+")").remove("img")
+        }
+      }
+    }
+    if(bnewd==0)
+    {
+      bnewd=1;
+      for(var k=1;k<8;k++)
+      {
+        for(var j=0;j<(lenres[k-1]-1);j++)
+        {
+            $(".col-"+k).prepend("<img src='' class='elemento' style='visibility:hidden'/>")
+        }
+      }
+    }
+    for(var j=1;j<8;j++)
+    {
+      if(contador>(maximo-lenres[j-1]))
+      {
+        numero=Math.floor(Math.random() * 4) + 1 ;
+        imagen="image/"+numero+".png";
+        $(".col-"+j).prepend("<img src="+imagen+" class='elemento'/>")
+      }
+    }
+  }
+  if(contador==1)
+  {
+      clearInterval(newdulces);
+      eliminar=setInterval(function(){eliminarhorver()},150)
+  }
+  contador=contador-1;
+}
+
+//funcion busqueda horizontal de dulces
 function horizontal(){
   var bh=0;
-  for(var j=1;j<8;j++){
-    for(var k=1;k<6;k++){
+  for(var j=1;j<8;j++)
+  {
+    for(var k=1;k<6;k++)
+    {
       var res1=$(".col-"+k).children("img:nth-last-child("+j+")").attr("src")
       var res2=$(".col-"+(k+1)).children("img:nth-last-child("+j+")").attr("src")
       var res3=$(".col-"+(k+2)).children("img:nth-last-child("+j+")").attr("src")
       if((res1==res2) && (res2==res3) && (res1!=null) && (res2!=null) && (res3!=null))
       {
-        $(".col-"+k).children("img:nth-last-child("+(j)+")").attr("class","elemento activo")
-        $(".col-"+(k+1)).children("img:nth-last-child("+(j)+")").attr("class","elemento activo")
-        $(".col-"+(k+2)).children("img:nth-last-child("+(j)+")").attr("class","elemento activo")
-        bh=1;
+          $(".col-"+k).children("img:nth-last-child("+(j)+")").attr("class","elemento activo")
+          $(".col-"+(k+1)).children("img:nth-last-child("+(j)+")").attr("class","elemento activo")
+          $(".col-"+(k+2)).children("img:nth-last-child("+(j)+")").attr("class","elemento activo")
+          bh=1;
       }
     }
   }
   return bh;
 }
-//Funcion de busqueda vertical de dulces
+
+//funcion de busqueda vertical de dulces
 function vertical(){
   var bv=0;
-  for(var l=1;l<6;l++){
-    for(var k=1;k<8;k++){
+  for(var l=1;l<6;l++)
+  {
+    for(var k=1;k<8;k++)
+    {
       var res1=$(".col-"+k).children("img:nth-child("+l+")").attr("src")
       var res2=$(".col-"+k).children("img:nth-child("+(l+1)+")").attr("src")
       var res3=$(".col-"+k).children("img:nth-child("+(l+2)+")").attr("src")
       if((res1==res2) && (res2==res3) && (res1!=null) && (res2!=null) && (res3!=null))
       {
-        $(".col-"+k).children("img:nth-child("+(l)+")").attr("class","elemento activo")
-        $(".col-"+k).children("img:nth-child("+(l+1)+")").attr("class","elemento activo")
-        $(".col-"+k).children("img:nth-child("+(l+2)+")").attr("class","elemento activo")
-        bv=1;
+          $(".col-"+k).children("img:nth-child("+(l)+")").attr("class","elemento activo")
+          $(".col-"+k).children("img:nth-child("+(l+1)+")").attr("class","elemento activo")
+          $(".col-"+k).children("img:nth-child("+(l+2)+")").attr("class","elemento activo")
+          bv=1;
       }
     }
   }
   return bv;
-}
-
-function eliminar(){
-  var h= horizontal();
-  var v= vertical();
-  $(h,v).remove();
 }
